@@ -36,5 +36,35 @@ const getEventDetails=async(req,res)=>{
       res.status(500).json({ error: error });   
     }
 }
+const registerForEvent=async(req,res)=>{
+    const {event_id,user_id}=req.params.body;
+    try{
+        if(!event_id || !user_id){
+            return res.status(400).json({message:'user and event are required'})
+        }
+        const doEventExists=await pool.query('SELECT * FROM events WHERE id=$1',[event_id]);
+        if(doEventExists.rows.length===0){
+            return res.status(404).json({message:'event does not exists'})
+        }
+        const event=doEventExists.rows[0];
+        if(new Date(event.datetime)<new Date()){
+            return res.status(400).json({message:'event date is expired'})
+        }
+        const existing=await pool.query('SELECT * FROM registrations WHERE evennt_id =$1 AND user_id = $2',[event_id,user_id])
+        if(existing.rows.length>0){
+            return res.status(409).json({message:'user with user id already regsitered'})
+        }
+        const countResult=await pool.query('SELECT COUNT(*) FROM registrations WHERE event_id=$1',[event_id])
+        const registered=parseInt(countResult.rows[0].count)
+        if(registered>event.capacity){
+            return res.status(400).json({message:'event capacity is full'})
+        }
+        await pool.query('INSERT INTO registrations (event_id,used_id) VALUES ($1,$2)',[event_id,user_id]);
+        res.status(200).json({message:'user registered successfully'})
 
-module.exports={createEvent,getEventDetails}
+    }catch(error){
+        res.status(500).json({ error: "Internal server error" });
+    }
+}
+
+module.exports={createEvent,getEventDetails,registerForEvent}
