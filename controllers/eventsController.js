@@ -66,5 +66,51 @@ const registerForEvent=async(req,res)=>{
         res.status(500).json({ error: "Internal server error" });
     }
 }
+const cancelRegistration=async(req,res)=>{
+    const {user_id,event_id}=req.body;
+    if(!user_id || !event_id){
+        return res.status(400).json({message:'user and event id is required'})
+    }
+    try{
+        const res=await pool.query('SELECT * FROM registrations WHERE event_id = $1 AND user_id=$2',[event_id,user_id])
+        if(res.rows.length===0){
+            return res.status(404).json({message:'user with this used id has not registered'})
+        }
+        await pool.query('DELETE FROM registrations WHERE event_id = $1 AND user_id = $2',[event_id,user_id])
+        res.status(200).json({message:'registration cancelled sucessfully!!'})
+    }catch(error){
+           res.status(500).json({ error: "Internal server error" });
+    }
+}
+const getUpcomingEvents=async(req,res)=>{
+    try{
+        const result=await pool.query('SELECT * FROM events WHERE datetime>NOW() ORDER BY datetime ASC , location ASC')
+        res.status(200).json({data:result})
+    }catch(error){
+           res.status(500).json({ error: "Internal server error" });
+    }
+}
+const getStats=async(req,res)=>{
+    const {event_id}=req.params;
+    try{
+        const result=await pool.query('SELECT * FROM events WHERE event_id=$1',[event_id])
+        if(result.rows.length===0){
+            return res.status(404).json({message:'event with this event id does not exists'})
+        }
+        const event=result.rows[0];
+        const registrations=await pool.query('SELECT COUNT(*) FROM registrations WHERE event_id = $1',[event_id])
+        const totalRegistratrion=parseInt(registrations.rows[0].count)
+          const remainingCapacity = event.capacity - totalRegistrations;
+        const percentageUsed = ((totalRegistrations / event.capacity) * 100).toFixed(2);
+           res.status(200).json({
+      event_id,
+      total_registrations: totalRegistratrion,
+      remaining_capacity: remainingCapacity,
+      percentage_used: `${percentageUsed}%`
+    });
+    }catch(error){
+         res.status(500).json({ error: "Internal server error" });
+    }
+}
 
-module.exports={createEvent,getEventDetails,registerForEvent}
+module.exports={createEvent,getEventDetails,registerForEvent,cancelRegistration,getUpcomingEvents,getStats}
