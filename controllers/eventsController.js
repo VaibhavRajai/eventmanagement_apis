@@ -18,4 +18,23 @@ const createEvent=async(req,res)=>{
     }
 }
 
-module.exports={createEvent}
+const getEventDetails=async(req,res)=>{
+    const event_id=req.params.id;
+    try{
+        const event_res=await pool.query('SELECT * FROM events WHERE ID = $1',[event_id]);
+        if(event_res.rows.length===0){
+            return res.status(404).json({message:'event not found'})
+        }
+        const event=event_res.rows[0]
+        const user_res=await pool.query(`SELECT users.id,users.name,users.email FROM users JOIN registrations ON users.id=registrations.user.id
+            WHERE registrations.event_id=$1
+            `,[event_id])
+            const registeredUsers=user_res.rows;
+            res.json({event,registered_users:registeredUers})
+
+    }catch(error){
+      res.status(500).json({ error: error });   
+    }
+}
+
+module.exports={createEvent,getEventDetails}
